@@ -5,7 +5,7 @@ pydantic-settings
 pwdlib[argon2]
 sqlmodel
 python-multipart
-python-jose[cryptography]
+PyJWT
 passlib[bcrypt]
 python-dotenv
 sqlalchemy

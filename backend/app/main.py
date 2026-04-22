@@ -48,11 +48,16 @@ app.add_middleware(
 
 # Servir el Frontend (React Build)
 if os.path.exists("dist"):
-    app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
+    # Solo montar assets si la carpeta existe realmente
+    if os.path.exists("dist/assets"):
+        app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
     
     @app.get("/", include_in_schema=False)
     async def serve_index():
-        return FileResponse("dist/index.html")
+        index_path = os.path.join("dist", "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+        return {"error": "Frontend build not found"}
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(full_path: str):
