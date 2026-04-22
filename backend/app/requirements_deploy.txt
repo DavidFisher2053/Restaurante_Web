@@ -1,5 +1,7 @@
 fastapi
 uvicorn
+gunicorn
+pydantic-settings
 sqlmodel
 python-multipart
 python-jose[cryptography]

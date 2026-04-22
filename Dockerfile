@@ -30,5 +30,5 @@ RUN chmod -R 755 static
 # Exponer puerto para Cloud Run (8080 por defecto)
 EXPOSE 8080
 
-# Ejecutar con Uvicorn usando la variable de entorno PORT
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+# Ejecutar con Gunicorn usando el worker de Uvicorn
+CMD ["sh", "-c", "gunicorn -w 2 -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:${PORT:-8080} --timeout 0"]
