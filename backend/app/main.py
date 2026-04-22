@@ -25,24 +25,13 @@ if not os.path.exists("static"):
     os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Servir el Frontend (React Build)
-if os.path.exists("dist"):
-    app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
-    
-    @app.get("/", include_in_schema=False)
-    async def serve_index():
-        return FileResponse("dist/index.html")
-
-    @app.get("/{full_path:path}", include_in_schema=False)
-    async def serve_spa(full_path: str):
-        # Rutas excluidas de la redirección al index.html
-        api_prefixes = ["users", "auth", "products", "orders", "categories", "orders_user", "static", "assets", "docs", "redoc", "openapi.json"]
-        if any(full_path.startswith(prefix) for prefix in api_prefixes):
-            return None 
-        
-        index_path = os.path.join("dist", "index.html")
-        return FileResponse(index_path)
-
+#---- Routers
+app.include_router(users.router)
+app.include_router(auth_user.router)
+app.include_router(products.router)
+app.include_router(orders.router)
+app.include_router(orders_user.router)
+app.include_router(categories.router)
 
 if settings.cors_origins:
     app.add_middleware(
@@ -53,12 +42,20 @@ if settings.cors_origins:
         allow_headers=["*"],
     )
 
-#---- Routers
-app.include_router(users.router)
-app.include_router(auth_user.router)
-app.include_router(products.router)
-app.include_router(orders.router)
-app.include_router(orders_user.router)
-app.include_router(categories.router)
+# Servir el Frontend (React Build)
+if os.path.exists("dist"):
+    app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
+    
+    @app.get("/", include_in_schema=False)
+    async def serve_index():
+        return FileResponse("dist/index.html")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        # El catch-all solo se alcanza si no coincide con routers previos
+        index_path = os.path.join("dist", "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+        return None # O podrías devolver un 404
 
 #app.mount("/static", StaticFiles(directory="static"), name="static")
