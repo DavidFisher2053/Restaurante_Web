@@ -2,6 +2,7 @@ fastapi
 uvicorn
 gunicorn
 pydantic-settings
+pwdlib[argon2]
 sqlmodel
 python-multipart
 python-jose[cryptography]
