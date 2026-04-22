@@ -1,15 +1,26 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from sqlalchemy.exc import IntegrityError
 from db.database import select, get_Session, Session
-from db.models.orders import Orders, OrdersCreate, OrdersRead, OrdersUpdate, Order_Dishes, User_Orders
+from db.models.orders import Orders, OrdersRead, Order_Dishes, User_Orders
 from db.models.dishes import Dishes
 from routers.auth_user import current_user
-
+from pydantic import BaseModel
+from datetime import datetime
+import random
+import string
 
 router = APIRouter(prefix="/orders_user",
                    tags=["orders_user"],
                    responses={status.HTTP_404_NOT_FOUND: {"message": "Orden no encontrada"}},
                    dependencies=[Depends(current_user)])
+
+class ItemCreate(BaseModel):
+    dish_id: int
+    amount: int
+
+class OrdersUserCreate(BaseModel):
+    items: list[ItemCreate]
+    place_delivery: str
 
 # ----- GET Obtener Ordenes del Usuario ----- #
 @router.get("/", response_model=list[OrdersRead], status_code=status.HTTP_200_OK)
@@ -59,57 +70,64 @@ async def get_order_details(order_id: int, session: Session = Depends(get_Sessio
         "items": items
     }
 
-    # ----- POST Crear Nueva Orden ----- #
-    @router.post("/", status_code=status.HTTP_201_CREATED)
-    async def create_order(
-    order_data: OrdersCreate, 
+# ----- POST Crear Nueva Orden ----- #
+@router.post("/", status_code=status.HTTP_201_CREATED)
+async def create_order(
+    order_data: OrdersUserCreate, 
     session: Session = Depends(get_Session), 
     user=Depends(current_user)
-    ):
-        try:
-            # 1. Crear la Orden Principal
-            # Calculamos el total sumando los precios de los platos
-            total_price = 0
-            order_dishes_to_add = []
+):
+    try:
+        # 1. Crear la Orden Principal
+        total_price = 0
+        order_dishes_to_add = []
 
-            for item in order_data.items:
-                dish = session.get(Dishes, item.dish_id)
-                if not dish:
-                    raise HTTPException(status_code=404, detail=f"Plato con id {item.dish_id} no encontrado")
+        for item in order_data.items:
+            dish = session.get(Dishes, item.dish_id)
+            if not dish:
+                raise HTTPException(status_code=404, detail=f"Plato con id {item.dish_id} no encontrado")
 
-                # Calcular precio con descuento si aplica
-                price_with_discount = dish.price * (1 - (dish.discount or 0) / 100)
-                item_total = price_with_discount * item.amount
-                total_price += item_total
+            # Calcular precio con descuento si aplica
+            price_with_discount = dish.price * (1 - (dish.discount or 0) / 100)
+            item_total = price_with_discount * item.amount
+            total_price += item_total
 
-                # Preparar la relación Order_Dishes
-                order_dishes_to_add.append(Order_Dishes(
-                    dish_id=dish.id,
-                    amount=item.amount,
-                    total_dishes_price=item_total
-                ))
+            # Preparar la relación Order_Dishes
+            order_dishes_to_add.append(Order_Dishes(
+                dish_id=dish.id,
+                amount=item.amount,
+                total_dishes_price=item_total
+            ))
 
-            new_order = Orders(
-                total_price=total_price,
-                place_delivery=order_data.place_delivery,
-                order_state="Pendiente"
-            )
-            session.add(new_order)
-            session.flush() # Para obtener el ID de la nueva orden
+        # Generar código de orden aleatorio
+        order_code = 'ORD-' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            # 2. Asociar Platos a la Orden
-            for od in order_dishes_to_add:
-                od.order_id = new_order.id
-                session.add(od)
+        new_order = Orders(
+            order_code=order_code,
+            total_price=total_price,
+            place_delivery=order_data.place_delivery,
+            creation_time=now_str,
+            delivery_time="En espera",
+            order_state=0, # 0: Pendiente
+            pay_method=1   # 1: Efectivo (por defecto)
+        )
+        session.add(new_order)
+        session.flush() # Para obtener el ID de la nueva orden
 
-            # 3. Asociar Orden al Usuario
-            user_order = User_Orders(user_id=user.id, order_id=new_order.id)
-            session.add(user_order)
+        # 2. Asociar Platos a la Orden
+        for od in order_dishes_to_add:
+            od.order_id = new_order.id
+            session.add(od)
 
-            session.commit()
-            session.refresh(new_order)
-            return new_order
+        # 3. Asociar Orden al Usuario
+        user_order = User_Orders(user_id=user.id, order_id=new_order.id)
+        session.add(user_order)
 
-        except Exception as e:
-            session.rollback()
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        session.commit()
+        session.refresh(new_order)
+        return new_order
+
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
