@@ -26,12 +26,12 @@ if not os.path.exists("static"):
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 #---- Routers
-app.include_router(users.router)
-app.include_router(auth_user.router)
-app.include_router(products.router)
-app.include_router(orders.router)
-app.include_router(orders_user.router)
-app.include_router(categories.router)
+app.include_router(users.router, prefix="/api")
+app.include_router(auth_user.router, prefix="/api")
+app.include_router(products.router, prefix="/api")
+app.include_router(orders.router, prefix="/api")
+app.include_router(orders_user.router, prefix="/api")
+app.include_router(categories.router, prefix="/api")
 
 # Configuración de CORS
 origins = settings.cors_origins
