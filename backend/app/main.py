@@ -33,14 +33,18 @@ app.include_router(orders.router)
 app.include_router(orders_user.router)
 app.include_router(categories.router)
 
-if settings.cors_origins:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# Configuración de CORS
+origins = settings.cors_origins
+if not origins:
+    origins = ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True if origins != ["*"] else False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Servir el Frontend (React Build)
 if os.path.exists("dist"):
