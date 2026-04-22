@@ -66,50 +66,50 @@ async def get_order_details(order_id: int, session: Session = Depends(get_Sessio
     session: Session = Depends(get_Session), 
     user=Depends(current_user)
     ):
-    try:
-        # 1. Crear la Orden Principal
-        # Calculamos el total sumando los precios de los platos
-        total_price = 0
-        order_dishes_to_add = []
+        try:
+            # 1. Crear la Orden Principal
+            # Calculamos el total sumando los precios de los platos
+            total_price = 0
+            order_dishes_to_add = []
 
-        for item in order_data.items:
-            dish = session.get(Dishes, item.dish_id)
-            if not dish:
-                raise HTTPException(status_code=404, detail=f"Plato con id {item.dish_id} no encontrado")
+            for item in order_data.items:
+                dish = session.get(Dishes, item.dish_id)
+                if not dish:
+                    raise HTTPException(status_code=404, detail=f"Plato con id {item.dish_id} no encontrado")
 
-            # Calcular precio con descuento si aplica
-            price_with_discount = dish.price * (1 - (dish.discount or 0) / 100)
-            item_total = price_with_discount * item.amount
-            total_price += item_total
+                # Calcular precio con descuento si aplica
+                price_with_discount = dish.price * (1 - (dish.discount or 0) / 100)
+                item_total = price_with_discount * item.amount
+                total_price += item_total
 
-            # Preparar la relación Order_Dishes
-            order_dishes_to_add.append(Order_Dishes(
-                dish_id=dish.id,
-                amount=item.amount,
-                total_dishes_price=item_total
-            ))
+                # Preparar la relación Order_Dishes
+                order_dishes_to_add.append(Order_Dishes(
+                    dish_id=dish.id,
+                    amount=item.amount,
+                    total_dishes_price=item_total
+                ))
 
-        new_order = Orders(
-            total_price=total_price,
-            place_delivery=order_data.place_delivery,
-            order_state="Pendiente"
-        )
-        session.add(new_order)
-        session.flush() # Para obtener el ID de la nueva orden
+            new_order = Orders(
+                total_price=total_price,
+                place_delivery=order_data.place_delivery,
+                order_state="Pendiente"
+            )
+            session.add(new_order)
+            session.flush() # Para obtener el ID de la nueva orden
 
-        # 2. Asociar Platos a la Orden
-        for od in order_dishes_to_add:
-            od.order_id = new_order.id
-            session.add(od)
+            # 2. Asociar Platos a la Orden
+            for od in order_dishes_to_add:
+                od.order_id = new_order.id
+                session.add(od)
 
-        # 3. Asociar Orden al Usuario
-        user_order = User_Orders(user_id=user.id, order_id=new_order.id)
-        session.add(user_order)
+            # 3. Asociar Orden al Usuario
+            user_order = User_Orders(user_id=user.id, order_id=new_order.id)
+            session.add(user_order)
 
-        session.commit()
-        session.refresh(new_order)
-        return new_order
+            session.commit()
+            session.refresh(new_order)
+            return new_order
 
-    except Exception as e:
-        session.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        except Exception as e:
+            session.rollback()
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
