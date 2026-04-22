@@ -42,7 +42,7 @@ class Order_Dishes(SQLModel, table=True):
     __tablename__ = "order_dishes" # type: ignore
     id: int | None = Field(default=None, primary_key=True)
     order_id: int = Field(foreign_key="orders.id")
-    dish_id: int = Field(foreign_key="dishes.id")
+    dish_id: int = Field(foreign_key="Dishes.id")
     amount: int
     total_dishes_price: float
 

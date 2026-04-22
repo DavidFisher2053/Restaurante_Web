@@ -21,6 +21,7 @@ class ItemCreate(BaseModel):
 class OrdersUserCreate(BaseModel):
     items: list[ItemCreate]
     place_delivery: str
+    pay_method: int
 
 # ----- GET Obtener Ordenes del Usuario ----- #
 @router.get("/", response_model=list[OrdersRead], status_code=status.HTTP_200_OK)
@@ -96,7 +97,7 @@ async def create_order(
             order_dishes_to_add.append(Order_Dishes(
                 dish_id=dish.id,
                 amount=item.amount,
-                total_dishes_price=item_total
+            total_dishes_price=item_total
             ))
 
         # Generar código de orden aleatorio
@@ -110,7 +111,7 @@ async def create_order(
             creation_time=now_str,
             delivery_time="En espera",
             order_state=0, # 0: Pendiente
-            pay_method=1   # 1: Efectivo (por defecto)
+            pay_method=order_data.pay_method
         )
         session.add(new_order)
         session.flush() # Para obtener el ID de la nueva orden

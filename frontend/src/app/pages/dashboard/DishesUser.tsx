@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search, Filter, Eye, DollarSign, XCircle, ShoppingCart, Trash, Plus, Minus } from 'lucide-react';
+import { Search, Filter, Eye, DollarSign, XCircle, ShoppingCart, Trash, Plus, Minus, MapPin } from 'lucide-react';
 import { apiFetch, readApiError } from '@/lib/api';
 
 const PLACEHOLDER_IMAGES = [
@@ -88,6 +88,11 @@ export default function Dishes() {
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [orderForm, setOrderForm] = useState({
+    place_delivery: '',
+    pay_method: 1
+  });
   const [itemQuantities, setItemQuantities] = useState<Record<number, number>>({});
 
   const loadData = useCallback(async () => {
@@ -163,13 +168,18 @@ export default function Dishes() {
 
   const handlePlaceOrder = async () => {
     setListError('');
+    if (!orderForm.place_delivery.trim()) {
+      setListError('Por favor ingresa una dirección de entrega');
+      return;
+    }
     try {
       const res = await apiFetch('/orders_user/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items: cart.map((item) => ({ dish_id: item.dishId, amount: item.quantity })),
-          place_delivery: 'Local del Restaurante',
+          place_delivery: orderForm.place_delivery,
+          pay_method: Number(orderForm.pay_method)
         }),
       });
       if (!res.ok) throw new Error(await readApiError(res));
@@ -177,6 +187,8 @@ export default function Dishes() {
       setShowSuccess(true);
       setCart([]);
       setIsCartOpen(false);
+      setIsOrderModalOpen(false);
+      setOrderForm({ place_delivery: '', pay_method: 1 });
       setTimeout(() => setShowSuccess(false), 5000);
     } catch (e) {
       setListError(e instanceof Error ? e.message : 'Error al realizar el pedido');
@@ -566,11 +578,77 @@ export default function Dishes() {
               </div>
               <button
                 disabled={cart.length === 0}
-                onClick={handlePlaceOrder}
+                onClick={() => setIsOrderModalOpen(true)}
                 className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
               >
-                Realizar Pedido
+                Continuar con el Pedido
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Order Details Modal */}
+      {isOrderModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-blue-600" />
+                Detalles de Entrega
+              </h2>
+              <button onClick={() => setIsOrderModalOpen(false)}>
+                <XCircle className="w-6 h-6 text-gray-400" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Dirección de Entrega
+                </label>
+                <textarea
+                  placeholder="Ej: Calle 123 # 45-67, Apartamento 101"
+                  value={orderForm.place_delivery}
+                  onChange={(e) => setOrderForm(prev => ({ ...prev, place_delivery: e.target.value }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none h-24 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Método de Pago
+                </label>
+                <select
+                  value={orderForm.pay_method}
+                  onChange={(e) => setOrderForm(prev => ({ ...prev, pay_method: parseInt(e.target.value) }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                >
+                  <option value={1}>Efectivo</option>
+                  <option value={2}>Tarjeta de Crédito</option>
+                  <option value={3}>Transferencia Bancaria</option>
+                  <option value={4}>Nequi / Daviplata</option>
+                </select>
+              </div>
+
+              <div className="pt-4 border-t mt-6">
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-gray-600">Total:</span>
+                  <span className="text-xl font-bold text-gray-900">${cartTotal}</span>
+                </div>
+                <button
+                  onClick={handlePlaceOrder}
+                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition-all shadow-lg active:scale-95"
+                >
+                  Confirmar y Pagar
+                </button>
+                <button
+                  onClick={() => setIsOrderModalOpen(false)}
+                  className="w-full mt-2 text-gray-500 py-2 text-sm hover:underline"
+                >
+                  Regresar al carrito
+                </button>
+              </div>
             </div>
           </div>
         </div>
