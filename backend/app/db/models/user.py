@@ -7,7 +7,7 @@ class UserBase(SQLModel):
     user_full_name: str | None = None
 
 class Users(UserBase, table=True):
-    __tablename__ = "Users" # type: ignore
+    __tablename__ = "users" # type: ignore
     id: int | None = Field(default=None, primary_key=True)
     user_role: int = Field(default=None)
     user_password: str
